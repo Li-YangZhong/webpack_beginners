@@ -2,13 +2,28 @@ const path = require('path');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const TerserJSPlugin = require('terser-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const WebpackManifestPlugin = require('webpack-manifest-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const mode = "development";
+const webpack = require('webpack');
 module.exports = {
+    devServer: {
+        port: 9000,
+        contentBase: path.resolve(__dirname, 'build'),
+        // publicPath: '/assets/'
+        hot: true,
+        overlay: true
+    },
     watch: false,
-    mode: "production",
+    mode: mode,
     devtool: "cheap-module-eval-source-map",
-    entry: "./src/index.js",
+    entry: {
+        application: "./src/javascripts/index.js",
+        admin: "./src/javascripts/admin.js"
+    },
     output: {
-        filename: "application.js",
+        filename: mode === 'production' ? "[name]-[contenthash].js" : '[name].js',
         path: path.resolve(__dirname, 'build')
     },
     optimization: {
@@ -31,7 +46,12 @@ module.exports = {
             },
             {
                 test: /\.css$/i,
-                use: [MiniCssExtractPlugin.loader, { loader: 'css-loader', options: { importLoaders: 1 } }, {
+                use: [{
+                    loader: MiniCssExtractPlugin.loader,
+                    options: {
+                        hmr: true,
+                    },
+                }, { loader: 'css-loader', options: { importLoaders: 1 } }, {
                     loader: 'postcss-loader',
                     options: {
                         plugins: [
@@ -44,7 +64,12 @@ module.exports = {
             },
             {
                 test: /\.scss$/i,
-                use: [MiniCssExtractPlugin.loader, { loader: 'css-loader', options: { importLoaders: 1 } }, {
+                use: [{
+                    loader: MiniCssExtractPlugin.loader,
+                    options: {
+                        hmr: true,
+                    },
+                }, { loader: 'css-loader', options: { importLoaders: 1 } }, {
                     loader: 'postcss-loader',
                     options: {
                         plugins: [
@@ -54,12 +79,40 @@ module.exports = {
                         ]
                     }
                 }, 'sass-loader'],
+            },
+            {
+                test: /\.(png|jpg|gif|svg)$/i,
+                use: [
+                    {
+                        loader: 'url-loader',
+                        options: {
+                            limit: 8192,
+                            name: mode === "production" ? "[name]-[hash:7].[ext]" : "[name].[ext]"
+                        },
+                    },
+                    { loader: 'image-webpack-loader' }
+                ],
             }
         ]
     },
     plugins: [
+        new webpack.ProvidePlugin({
+            $: 'jquery',
+            jQuery: 'jquery'
+        }),
+        new HtmlWebpackPlugin({
+            template: './src/template.html'
+        }),
+        new WebpackManifestPlugin(),
+        new CleanWebpackPlugin(),
         new MiniCssExtractPlugin({
-            filename: 'application.css'
+            filename: mode === 'production' ? "[name]-[contenthash].css" : '[name].css'
         })
-    ]
+    ],
+    resolve: {
+        alias: {
+            CssFolder: path.resolve(__dirname, 'src/stylesheets/')
+        },
+        modules: [path.resolve(__dirname, 'src/downloaded_libs'), 'node_modules']
+    }
 }
